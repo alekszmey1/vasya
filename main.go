@@ -25,17 +25,19 @@ func newDish(l string) *dish {
 
 // хранилище блюд
 type dishStorage struct {
-	dishName map[int]*dish
+	dishName map[string]*dish
 }
 
 // создание хранилища блюд
 func newDishStorage() *dishStorage {
-	return &dishStorage{dishName: make(map[int]*dish)}
+	return &dishStorage{dishName: make(map[string]*dish)}
+
 }
 
 // добавление блюда в хранилище
-func (ds *dishStorage) put(d *dish, i int) {
-	ds.dishName[i] = d
+func (ds *dishStorage) put(d *dish) {
+	ds.dishName[d.nameDish] = d
+
 }
 func (ds *dishStorage) getAll() []*dish {
 	var dishs []*dish
@@ -60,6 +62,14 @@ func newIngredient(l string) *ingredient {
 	i.amountIng, _ = strconv.Atoi(s[1])
 	i.unit = s[2]
 	return &i
+}
+func newIngredientEat(i *ingredient, k int) *ingredient {
+	ing := ingredient{}
+	ing.nameIng = i.nameIng
+	ing.amountIng = i.amountIng * k
+	ing.unit = i.unit
+	return &ing
+
 }
 
 // хранилище ингредиентов в блюде
@@ -141,11 +151,67 @@ type basket struct {
 	ui string // единица измерения
 }
 
+func newBasket(l string) *basket {
+	s := strings.Split(l, " ")
+	b := basket{}
+	b.ti = s[0]
+	b.pi, _ = strconv.Atoi(s[1])
+	b.ai, _ = strconv.Atoi(s[2])
+	b.ui = s[3]
+	return &b
+}
+
+// хранилище блюд
+type basketStorage struct {
+	basketName map[string]*basket
+}
+
+// создание хранилища блюд
+func newBasketStorage() *basketStorage {
+	return &basketStorage{basketName: make(map[string]*basket)}
+}
+
+// добавление блюда в хранилище
+func (bs *basketStorage) put(b *basket) {
+	bs.basketName[b.ti] = b
+}
+func (bs *basketStorage) getAll() []*basket {
+	var baskets []*basket
+	for _, v := range bs.basketName {
+		baskets = append(baskets, v)
+	}
+	return baskets
+}
+
+// хранилище блюд
+type ingrediantMap struct {
+	inredientStorageName map[int]*ingredientStorage
+}
+
+// создание хранилища блюд
+func newIngredientMap() *ingrediantMap {
+	return &ingrediantMap{inredientStorageName: make(map[int]*ingredientStorage)}
+}
+
+// добавление блюда в хранилище
+func (im *ingrediantMap) put(is *ingredientStorage, i int) {
+	im.inredientStorageName[i] = is
+}
+func (im *ingrediantMap) getAll() []*ingredientStorage {
+	var is []*ingredientStorage
+	for _, v := range im.inredientStorageName {
+		is = append(is, v)
+	}
+	return is
+}
+
 func main() {
 	ds := newDishStorage()
 	ics := newIngredientCaloriesStorage()
-	ingredientMap := make(map[int]*ingredientStorage)
-	basketMap := make(map[int]basket)
+	im := newIngredientMap()
+	ingredientMapEat := newIngredientMap()
+	//ise := newIngredientStorage()
+	bs := newBasketStorage()
 	s := "2\n" + //сколько блюд готовить
 		"sandwich 7 3\n" + //название блюдо, на сколько человек, количество ингредиентов
 		"butter 10 g\n" + //ингредиент, сколько гр, мл, шт ;
@@ -180,20 +246,20 @@ func main() {
 	for k := 0; k < amountBush; k++ {
 		d := newDish(s2[i])
 		i++
-		ds.put(d, k)
+		ds.put(d)
 		is := newIngredientStorage()
 		for j := 0; j < d.numberIngredient; j++ {
 			ing := newIngredient(s2[i])
 			is.put(ing)
 			i++
 		}
-		ingredientMap[k] = is
+		im.put(is, k)
 	}
 	basketInt := stringToInt(s2[i])
 	i++
 	for x := 0; x < basketInt; x++ {
-		bas := stringToBasket(s2[i])
-		basketMap[x] = bas
+		bas := newBasket(s2[i])
+		bs.put(bas)
 		i++
 	}
 	caloriesInt := stringToInt(s2[i])
@@ -203,27 +269,45 @@ func main() {
 		i++
 		ics.put(cal)
 	}
-	sandvich := totalCalories(*ingredientMap[0], *ics)
-	omlet := totalCalories(*ingredientMap[1], *ics)
+	sandvich, omlet := caloriesDish{}, caloriesDish{}
+	for i, i3 := range im.getAll() {
+		if i == 0 {
+			sandvich = totalCalories(*i3, *ics)
+		}
+		if i == 1 {
+			omlet = totalCalories(*i3, *ics)
+		}
+	}
+
 	fmt.Println(sandvich)
 	fmt.Println(omlet)
+	for p, value := range ds.getAll() {
+		is := newIngredientStorage()
+		for s3, storage := range im.getAll() {
+			if p == s3 {
+				is = totalIngredients(value, storage)
+				ingredientMapEat.put(is, p)
+			}
+		}
+	}
+	for _, storage := range ingredientMapEat.getAll() {
+		for _, i3 := range storage.getAll() {
+			fmt.Println(i3)
+		}
+	}
+	fmt.Println()
+
+	tsi := totalShopIngredient(ingredientMapEat)
+
+	for _, i2 := range tsi.getAll() {
+		fmt.Println(i2)
+	}
+
 }
 func stringToInt(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
 }
-
-func stringToBasket(s string) basket {
-	s2 := strings.Split(s, " ")
-	d := basket{
-		ti: s2[0],
-		pi: stringToInt(s2[1]),
-		ai: stringToInt(s2[2]),
-		ui: s2[3],
-	}
-	return d
-}
-
 func countingCalories(i ingredient, c calories) caloriesDish {
 	ml := c.ai
 	var cd caloriesDish
@@ -258,4 +342,35 @@ func totalCalories(is ingredientStorage, cs caloriesStorage) caloriesDish {
 		}
 	}
 	return cd
+}
+func totalIngredients(d *dish, is *ingredientStorage) *ingredientStorage {
+
+	ise := newIngredientStorage()
+	for _, val := range is.getAll() {
+		ing := newIngredientEat(val, d.peopleEat)
+		ise.put(ing)
+	}
+	return ise
+}
+func totalShopIngredient(im *ingrediantMap) *ingredientStorage {
+	is := newIngredientStorage()
+
+	for k, storage := range im.getAll() {
+		for _, i2 := range storage.getAll() {
+			if k < 1 {
+				is.put(i2)
+			} else {
+				for _, i3 := range is.getAll() {
+					if i3.nameIng == i2.nameIng {
+						i3.amountIng = i3.amountIng + i2.amountIng
+						is.put(i3)
+						break
+					} else {
+						is.put(i2)
+					}
+				}
+			}
+		}
+	}
+	return is
 }
